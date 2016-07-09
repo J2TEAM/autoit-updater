@@ -8,12 +8,7 @@ if ( ! file_exists(UPLOAD_DIR)) {
 
 function getChangelog($file) {
   $file = UPLOAD_DIR . $file;
-  
-  if (file_exists($file)) {
-    return file_get_contents($file);
-  }
-
-  return NULL;
+  return (file_exists($file)) ? file_get_contents($file) : NULL;
 }
 
 if (isset($_SERVER['HTTP_USER_AGENT']) AND strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'autoit updater') !== FALSE) {
