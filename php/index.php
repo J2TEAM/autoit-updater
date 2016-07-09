@@ -16,7 +16,7 @@ function getChangelog($file) {
   return NULL;
 }
 
-if (isset($_SERVER['HTTP_USER_AGENT']) AND strtolower($_SERVER['HTTP_USER_AGENT']) === 'autoit updater') {
+if (isset($_SERVER['HTTP_USER_AGENT']) AND strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'autoit updater') !== FALSE) {
   $data = array(
     'base_url' => DOWNLOAD_URL,
     'stable' => array(
