@@ -29,7 +29,7 @@ Opt('GUIOnEventMode', 1)
 
 ; Script Start - Add your code below here
 Global Const $VERSION = '1.0.0'
-Global Const $SERVER_UPDATE = 'http://localhost/'
+Global Const $SERVER_UPDATE = 'http://localhost/autoit-updater/'
 
 #Region ### START Koda GUI section ###
 Global $FormMain = GUICreate('AutoIt Updater Demo v' & $VERSION, 591, 284, -1, -1)

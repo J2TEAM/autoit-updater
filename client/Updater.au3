@@ -29,7 +29,7 @@ Global Const $UPDATER_USER_AGENT = 'AutoIt Updater v' & $UPDATER_VERSION
 Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $message = 'You are using the latest version!')
 	Local $channel = ($beta) ? 'beta' : 'stable'
 	Local $unknowError = 'Something wrong happened.'
-	Local $response = __request($serverURL)
+	Local $response = __request($serverURL & 'version.php?channel=' & _urlEncode($channel))
 
 	If @error Then
 		__MsgBox(16, 'Error', 'Server URL is invalid.', $parentGUI)
@@ -37,7 +37,7 @@ Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $messag
 	EndIf
 
 	Local $json = Json_Decode($response)
-	Local $latestVersion = Json_Get($json, '["data"]["' & $channel & '"]["version"]')
+	Local $latestVersion = Json_Get($json, '["data"]["version"]')
 	If @error Then
 		__MsgBox(16, 'Error', $unknowError, $parentGUI)
 		Return False
@@ -51,7 +51,7 @@ Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $messag
 
 	; New version available
 	If $compare == -1 Then
-		Local $changelog = Json_Get($json, '["data"]["' & $channel & '"]["changelog"]')
+		Local $changelog = Json_Get($json, '["data"]["changelog"]')
 
 		; Show Changelog GUI
 		Opt('GUIOnEventMode', 0)
@@ -77,12 +77,15 @@ Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $messag
 			Switch $iMsg
 				Case $btnUpdate
 					GUISetState(@SW_HIDE, $formUpdate)
-					Local $base_url = Json_Get($json, '["data"]["base_url"]')
-					Local $fileName = Json_Get($json, '["data"]["' & $channel & '"]["name"]')
-					Local $filePath = __downloader($base_url & $fileName, $fileName, $fileName)
+					Local $fileName = Json_Get($json, '["data"]["name"]')
+					Local $url = $serverURL & 'download.php?channel=' & _urlEncode($channel)
+					$url &= '&version=' & _urlEncode($latestVersion)
+					$url &= '&file=' & _urlEncode($fileName)
+
+					Local $filePath = __downloader($url, $fileName, $fileName)
 					If @error Then
 						If __MsgBox(32 + 4, 'Error', 'Download failed. Do you want to open download url in the browser?', $parentGUI) == 6 Then
-							ShellExecute($base_url & $fileName)
+							ShellExecute($url)
 						EndIf
 					Else
 						; Run setup file
@@ -170,6 +173,23 @@ Func __request($url)
 	$oHTTP.WaitForResponse
 	Return $oHTTP.Responsetext
 EndFunc   ;==>__request
+
+Func _urlEncode($vData)
+	If IsBool($vData) Then Return $vData
+	Local $aData = StringToASCIIArray($vData, Default, Default, 2)
+	Local $sOut = '', $total = UBound($aData) - 1
+	For $i = 0 To $total
+		Switch $aData[$i]
+			Case 45, 46, 48 To 57, 65 To 90, 95, 97 To 122, 126
+				$sOut &= Chr($aData[$i])
+			Case 32
+				$sOut &= '+'
+			Case Else
+				$sOut &= '%' & Hex($aData[$i], 2)
+		EndSwitch
+	Next
+	Return $sOut
+EndFunc   ;==>_urlEncode
 
 Func __MsgBox($flag, $title, $text, $parentGUI = 0)
 	; Top most
