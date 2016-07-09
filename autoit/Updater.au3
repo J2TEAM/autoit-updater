@@ -1,4 +1,4 @@
-#NoTrayIcon
+#include-once
 
 #Region Includes
 #include <InetConstants.au3>
@@ -7,6 +7,7 @@
 #include <EditConstants.au3>
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
+#include <Misc.au3>
 #EndRegion Includes
 
 #Region Options
@@ -81,7 +82,15 @@ Func _request($url)
 	Return $oHTTP.Responsetext
 EndFunc   ;==>_request
 
-Func _update($serverURL, $currentVersion, $beta = False, $message = 'You are using the latest version!')
+Func _MsgBox($flag, $title, $message, $parentGUI = 0)
+	If $parentGUI == 0 Then
+		MsgBox($flag, $title, $message)
+	Else
+		MsgBox($flag, $title, $message, 0, $parentGUI)
+	EndIf
+EndFunc
+
+Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $message = 'You are using the latest version!')
 	Local $response = _request($serverURL)
 	Local $channel = ($beta) ? 'beta' : 'stable'
 	Local $unknowError = 'Something wrong happened.'
@@ -89,13 +98,13 @@ Func _update($serverURL, $currentVersion, $beta = False, $message = 'You are usi
 	Local $json = Json_Decode($response)
 	Local $latestVersion = Json_Get($json, '["data"]["' & $channel & '"]["version"]')
 	If @error Then
-		MsgBox(16 + 262144, 'Error', $unknowError)
+		_MsgBox(16 + 262144, 'Error', $unknowError, $parentGUI)
 		Return False
 	EndIf
 
 	Local $compare = _VersionCompare($currentVersion, $latestVersion)
 	If @error Then
-		MsgBox(16 + 262144, 'Error', $unknowError)
+		_MsgBox(16 + 262144, 'Error', $unknowError, $parentGUI)
 		Return False
 	EndIf
 
@@ -104,8 +113,10 @@ Func _update($serverURL, $currentVersion, $beta = False, $message = 'You are usi
 		Local $changelog = Json_Get($json, '["data"]["' & $channel & '"]["changelog"]')
 
 		; Show Changelog GUI
+		Opt('GUIOnEventMode', 0)
+
 		#Region ### START Koda GUI section ### Form=E:\Program Files\AutoIt3\SciTE\Koda\Templates\Form1.kxf
-		Local $formUpdate = GUICreate('New version is available', 457, 270)
+		Local $formUpdate = GUICreate('New version is available', 457, 270, -1, -1, -1, -1, $parentGUI)
 		GUISetFont(12, 400, 0, 'Arial')
 		Local $Edit = GUICtrlCreateEdit('', 8, 8, 441, 217, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $ES_WANTRETURN, $WS_HSCROLL, $WS_VSCROLL))
 		GUICtrlSetData(-1, $changelog)
@@ -128,7 +139,7 @@ Func _update($serverURL, $currentVersion, $beta = False, $message = 'You are usi
 					Local $fileName = Json_Get($json, '["data"]["' & $channel & '"]["name"]')
 					Local $filePath = _webDownloader($base_url & $fileName, $fileName, $fileName)
 					If @error Then
-						If MsgBox(32 + 4 + 262144, 'Error', 'Download failed. Do you want to open download url in the browser?') == 6 Then
+						If _MsgBox(32 + 4 + 262144, 'Error', 'Download failed. Do you want to open download url in the browser?', $parentGUI) == 6 Then
 							ShellExecute($base_url & $fileName)
 						EndIf
 					Else
@@ -147,9 +158,9 @@ Func _update($serverURL, $currentVersion, $beta = False, $message = 'You are usi
 
 		GUIDelete($formUpdate)
 	Else
-		MsgBox(64 + 262144, 'Updater', $message)
+		_MsgBox(64 + 262144, 'Updater', $message, $parentGUI)
 		Return False
 	EndIf
 EndFunc   ;==>_update
 
-_update('http://localhost/', '1.0.0')
+;~ _update('http://localhost/', '1.0.0')
