@@ -2,7 +2,7 @@
 
 #Region Includes
 #include <InetConstants.au3>
-#include <JSON.au3>
+#include <JSON.au3> ; by Ward
 #include <ButtonConstants.au3>
 #include <EditConstants.au3>
 #include <GUIConstantsEx.au3>
@@ -10,14 +10,103 @@
 #include <Misc.au3>
 #EndRegion Includes
 
-#Region Options
-Opt('MustDeclareVars', 1)
-Opt('WinTitleMatchMode', 2)
-Opt('GUICloseOnESC', 0)
-#EndRegion Options
+; #INDEX# =======================================================================================================================
+; Title .........: AutoIt Updater
+; UDF Version....: 1.0.0
+; AutoIt Version : 3.3.14.2
+; Description ...: An updater for your AutoIt applications
+; Author(s) .....: Juno_okyo
+; ===============================================================================================================================
 
-; Script Start - Add your code below here
-Func _webDownloader($sSourceURL, $sTargetName, $sVisibleName, $sTargetDir = @TempDir, $bProgressOff = True, $iEndMsgTime = 2000, $sDownloaderTitle = "Downloader")
+; #CONSTANTS# ===================================================================================================================
+Global Const $UPDATER_VERSION = '1.0.0'
+Global Const $UPDATER_USER_AGENT = 'AutoIt Updater v' & $UPDATER_VERSION
+; ===============================================================================================================================
+
+; #FUNCTION# ====================================================================================================================
+; Author ........: Juno_okyo
+; ===============================================================================================================================
+Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $message = 'You are using the latest version!')
+	Local $channel = ($beta) ? 'beta' : 'stable'
+	Local $unknowError = 'Something wrong happened.'
+	Local $response = __request($serverURL)
+
+	If @error Then
+		__MsgBox(16, 'Error', 'Server URL is invalid.', $parentGUI)
+		Return False
+	EndIf
+
+	Local $json = Json_Decode($response)
+	Local $latestVersion = Json_Get($json, '["data"]["' & $channel & '"]["version"]')
+	If @error Then
+		__MsgBox(16, 'Error', $unknowError, $parentGUI)
+		Return False
+	EndIf
+
+	Local $compare = _VersionCompare($currentVersion, $latestVersion)
+	If @error Then
+		__MsgBox(16, 'Error', $unknowError, $parentGUI)
+		Return False
+	EndIf
+
+	; New version available
+	If $compare == -1 Then
+		Local $changelog = Json_Get($json, '["data"]["' & $channel & '"]["changelog"]')
+
+		; Show Changelog GUI
+		Opt('GUIOnEventMode', 0)
+		Opt('GUICloseOnESC', 0)
+
+		#Region ### START Koda GUI section ###
+		Local $formUpdate = GUICreate('New version is available', 457, 270, -1, -1, -1, -1, $parentGUI)
+		GUISetFont(12, 400, 0, 'Arial')
+		Local $Edit = GUICtrlCreateEdit('', 8, 8, 441, 217, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $ES_WANTRETURN, $WS_HSCROLL, $WS_VSCROLL))
+		GUICtrlSetData(-1, $changelog)
+		GUIStartGroup()
+		Local $btnUpdate = GUICtrlCreateButton('Update now', 102, 235, 107, 25)
+		GUICtrlSetFont(-1, 12, 400, 0, 'Arial')
+		Local $btnCancel = GUICtrlCreateButton('Cancel', 246, 235, 107, 25)
+		GUICtrlSetFont(-1, 12, 400, 0, 'Arial')
+		GUIStartGroup()
+		GUISetState(@SW_SHOW, $formUpdate)
+		#EndRegion ### END Koda GUI section ###
+
+		Local $iMsg = 0
+		While 1
+			$iMsg = GUIGetMsg()
+			Switch $iMsg
+				Case $btnUpdate
+					GUISetState(@SW_HIDE, $formUpdate)
+					Local $base_url = Json_Get($json, '["data"]["base_url"]')
+					Local $fileName = Json_Get($json, '["data"]["' & $channel & '"]["name"]')
+					Local $filePath = __downloader($base_url & $fileName, $fileName, $fileName)
+					If @error Then
+						If __MsgBox(32 + 4, 'Error', 'Download failed. Do you want to open download url in the browser?', $parentGUI) == 6 Then
+							ShellExecute($base_url & $fileName)
+						EndIf
+					Else
+						; Run setup file
+						ShellExecute($filePath)
+					EndIf
+					ExitLoop
+
+				Case $btnCancel
+					ExitLoop
+
+				Case $GUI_EVENT_CLOSE
+					ExitLoop
+			EndSwitch
+		WEnd
+
+		GUIDelete($formUpdate)
+	Else
+		__MsgBox(64, 'Updater', $message, $parentGUI)
+		Return False
+	EndIf
+EndFunc   ;==>_update
+
+#Region <INTERNAL_USE_ONLY>
+Func __downloader($sSourceURL, $sTargetName, $sVisibleName, $sTargetDir = @TempDir, $bProgressOff = True, $iEndMsgTime = 2000, $sDownloaderTitle = "Downloader")
 	; Declare some general vars
 	Local $iMBbytes = 1048576
 
@@ -67,100 +156,29 @@ Func _webDownloader($sSourceURL, $sTargetName, $sVisibleName, $sTargetDir = @Tem
 		EndIf
 		SetError(1, $errorCode, False)
 	EndIf
-EndFunc   ;==>_webDownloader
+EndFunc   ;==>__downloader
 
-Func _request($url)
-	If StringLen($url) == 0 Then Return False
+Func __request($url)
+	If StringLen($url) == 0 Then Return SetError(1, 0, False)
 
 	Local $oHTTP = ObjCreate('WinHttp.WinHttpRequest.5.1')
 	$oHTTP.Option(6) = False
 	$oHTTP.Open('get', $url, False)
-	$oHTTP.SetRequestHeader('User-Agent', 'AutoIt Updater')
+	$oHTTP.SetRequestHeader('User-Agent', $UPDATER_USER_AGENT)
 	$oHTTP.SetRequestHeader('Content-Type', 'application/vnd.api+json')
 	$oHTTP.Send()
 	$oHTTP.WaitForResponse
 	Return $oHTTP.Responsetext
-EndFunc   ;==>_request
+EndFunc   ;==>__request
 
-Func _MsgBox($flag, $title, $message, $parentGUI = 0)
+Func __MsgBox($flag, $title, $text, $parentGUI = 0)
+	; Top most
+	$flag += 262144
+
 	If $parentGUI == 0 Then
-		MsgBox($flag, $title, $message)
+		MsgBox($flag, $title, $text)
 	Else
-		MsgBox($flag, $title, $message, 0, $parentGUI)
+		MsgBox($flag, $title, $text, 0, $parentGUI)
 	EndIf
-EndFunc
-
-Func _update($serverURL, $currentVersion, $beta = False, $parentGUI = 0, $message = 'You are using the latest version!')
-	Local $response = _request($serverURL)
-	Local $channel = ($beta) ? 'beta' : 'stable'
-	Local $unknowError = 'Something wrong happened.'
-
-	Local $json = Json_Decode($response)
-	Local $latestVersion = Json_Get($json, '["data"]["' & $channel & '"]["version"]')
-	If @error Then
-		_MsgBox(16 + 262144, 'Error', $unknowError, $parentGUI)
-		Return False
-	EndIf
-
-	Local $compare = _VersionCompare($currentVersion, $latestVersion)
-	If @error Then
-		_MsgBox(16 + 262144, 'Error', $unknowError, $parentGUI)
-		Return False
-	EndIf
-
-	; New version available
-	If $compare == -1 Then
-		Local $changelog = Json_Get($json, '["data"]["' & $channel & '"]["changelog"]')
-
-		; Show Changelog GUI
-		Opt('GUIOnEventMode', 0)
-
-		#Region ### START Koda GUI section ### Form=E:\Program Files\AutoIt3\SciTE\Koda\Templates\Form1.kxf
-		Local $formUpdate = GUICreate('New version is available', 457, 270, -1, -1, -1, -1, $parentGUI)
-		GUISetFont(12, 400, 0, 'Arial')
-		Local $Edit = GUICtrlCreateEdit('', 8, 8, 441, 217, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $ES_WANTRETURN, $WS_HSCROLL, $WS_VSCROLL))
-		GUICtrlSetData(-1, $changelog)
-		GUIStartGroup()
-		Local $btnUpdate = GUICtrlCreateButton('Update now', 102, 235, 107, 25)
-		GUICtrlSetFont(-1, 12, 400, 0, 'Arial')
-		Local $btnCancel = GUICtrlCreateButton('Cancel', 246, 235, 107, 25)
-		GUICtrlSetFont(-1, 12, 400, 0, 'Arial')
-		GUIStartGroup()
-		GUISetState(@SW_SHOW)
-		#EndRegion ### END Koda GUI section ###
-
-		Local $iMsg = 0
-		While 1
-			$iMsg = GUIGetMsg()
-			Switch $iMsg
-				Case $btnUpdate
-					GUISetState(@SW_HIDE, $formUpdate)
-					Local $base_url = Json_Get($json, '["data"]["base_url"]')
-					Local $fileName = Json_Get($json, '["data"]["' & $channel & '"]["name"]')
-					Local $filePath = _webDownloader($base_url & $fileName, $fileName, $fileName)
-					If @error Then
-						If _MsgBox(32 + 4 + 262144, 'Error', 'Download failed. Do you want to open download url in the browser?', $parentGUI) == 6 Then
-							ShellExecute($base_url & $fileName)
-						EndIf
-					Else
-						; Run setup file
-						ShellExecute($filePath)
-					EndIf
-					ExitLoop
-
-				Case $btnCancel
-					ExitLoop
-
-				Case $GUI_EVENT_CLOSE
-					ExitLoop
-			EndSwitch
-		WEnd
-
-		GUIDelete($formUpdate)
-	Else
-		_MsgBox(64 + 262144, 'Updater', $message, $parentGUI)
-		Return False
-	EndIf
-EndFunc   ;==>_update
-
-;~ _update('http://localhost/', '1.0.0')
+EndFunc   ;==>__MsgBox
+#EndRegion <INTERNAL_USE_ONLY>
