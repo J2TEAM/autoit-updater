@@ -2,7 +2,7 @@
 define('UPLOAD_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'upload' . DIRECTORY_SEPARATOR);
 define('DOWNLOAD_URL', 'http://localhost/upload/'); // CHANGE TO YOUR URL
 
-if (file_exists(UPLOAD_DIR)) {
+if ( ! file_exists(UPLOAD_DIR)) {
   mkdir(UPLOAD_DIR);
 }
 
