@@ -54,7 +54,7 @@ While 1
 WEnd
 
 Func MenuAboutClick()
-	MsgBox(64 + 262144, 'About', 'Developed by Juno_okyo', 0, $FormMain)
+	MsgBox(64 + 262144, 'About', 'Version: ' & $VERSION, 0, $FormMain)
 EndFunc
 
 Func MenuUpdateClick()
