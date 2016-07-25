@@ -3,8 +3,11 @@
 	AutoIt Version: 3.3.14.2
 	Author:         Juno_okyo
 
-	Script Function:
-	Template AutoIt script.
+	Copyright (C) 2016 Juno_okyo. All rights reserved.
+
+	This file is part of AutoIt Updater which is released under MIT LICENSE.
+	See file LICENSE or go to for full license details:
+	https://github.com/J2TeaM/autoit-updater/blob/master/LICENSE
 
 #ce ----------------------------------------------------------------------------
 
